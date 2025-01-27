@@ -40,9 +40,13 @@ class AdvancedStockDataProcessor:
         
         for tf in timeframes:
             period = timeframe_period_mapping.get(tf, '15m')
-            
-            # Fetch data using yfinance
-            data = yf.download(ticker, period=period, interval=tf)
+            YFInvalidPeriodError = 'YFInvalidPeriodError'
+
+            try:
+                # Fetch data using yfinance
+                data = yf.download(ticker, period=period, interval=tf)
+            except YFInvalidPeriodError:
+                data=yf.download(ticker, period=timeframe_period_mapping.get(tf, '1d'))
             
             if data.empty:
                 print(f"Warning: No data fetched for {ticker} with interval {tf} and period {period}.")
