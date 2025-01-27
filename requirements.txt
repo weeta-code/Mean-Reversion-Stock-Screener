@@ -1,0 +1,8 @@
+streamlit==1.29.0
+yfinance==0.2.33
+tiingo==0.14.0
+pandas==2.2.0
+numpy==1.26.3
+plotly==5.18.0
+pandas-market-calendars==4.1.4
+requests==2.31.0
