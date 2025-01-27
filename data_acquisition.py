@@ -39,20 +39,15 @@ class AdvancedStockDataProcessor:
         historical_data = {}
         
         for tf in timeframes:
-            period = timeframe_period_mapping.get(tf, '15m')
-            YFInvalidPeriodError = 'YFInvalidPeriodError'
-
-            try:
-                # Fetch data using yfinance
-                data = yf.download(ticker, period=period, interval=tf)
-            except YFInvalidPeriodError:
-                data=yf.download(ticker, period=timeframe_period_mapping.get(tf, '1d'))
+            period = timeframe_period_mapping.get(tf, '1d')
+            data = yf.download(ticker, period=period, interval=tf)
+            
             
             if data.empty:
                 print(f"Warning: No data fetched for {ticker} with interval {tf} and period {period}.")
                 continue 
             
-            # Basic feature engineering
+            # Our indicators / strategy
             data['RSI'] = self._calculate_rsi(data['Close'])
             (data['BB_Upper'], 
              data['BB_Middle'], 

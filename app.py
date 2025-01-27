@@ -60,12 +60,12 @@ class QuantitativeStockScreener:
                 self.render_stock_details(ticker)
 
     def render_stock_details(self, ticker: str):
-        timeframes = ['15m', '1h', '1d', '1wk', '1mo']  
-        historical_data = self.data_processor.fetch_historical_data(ticker, timeframes=timeframes)
+        timeframe = ['1d']  
+        historical_data = self.data_processor.fetch_historical_data(ticker, timeframes=timeframe)
         
         st.write(f"Available Timeframes for {ticker}: {list(historical_data.keys())}")
         
-        preferred_order = ['15m', '1h', '1d', '1wk', '1mo']
+        preferred_order = ['1d']
         data = None
         selected_tf = None
 
@@ -84,7 +84,10 @@ class QuantitativeStockScreener:
             return
 
         try:
-            current_price = data['Close'].iloc[-1]
+            # print(data['Close'].iloc[-1])
+            row_series = data['Close'].iloc[-1]
+            current_price = float(row_series.iloc[0])
+             #print(current_price)
             if not isinstance(current_price, (float, int, np.floating, np.integer)):
                 raise TypeError(f"'Close' price is not a numeric type: {type(current_price)}")
             st.metric("Current Price", f"${current_price:.2f}")
@@ -116,7 +119,7 @@ class QuantitativeStockScreener:
         
         # Candlestick chart
         fig.add_trace(go.Candlestick(
-            x=data.index,
+            x=data['Datetime'],
             open=data['Open'],
             high=data['High'],
             low=data['Low'],
