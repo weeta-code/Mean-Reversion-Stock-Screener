@@ -2,13 +2,8 @@ import streamlit as st
 import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
-import ta.momentum
-import ta.trend
-import ta.volatility
 import yfinance as yf
 from datetime import datetime, timedelta
-import pandas_ta as ta
-import pytz
 import numpy as np
 
 
@@ -135,13 +130,13 @@ if st.sidebar.button('Update'):
 
     # Plotting the chart
     fig = go.Figure()
+    data.columns = data.columns.droplevel(1)
     if chart_type == 'Candlestick':
         fig.add_trace(go.Candlestick(x=data['Datetime'],
                                      open=data['Open'],
                                      high = data['High'],
                                      low=data['Low'],
-                                     close=data['Close']))
-        
+                                     close=data['Close']))        
     else:
         fig = px.line(data, x='Datetime', y='Close')
 
@@ -169,16 +164,16 @@ if st.sidebar.button('Update'):
 
 # Sidebar section for real-time pricing of selected symbols
 st.sidebar.header('Real-Time Price Action')
-stock_symbols = ['AAPL', 'GOOGL', 'AMZN', 'MSFT']
+stock_symbols = ['AAPL', 'GOOGL', 'AMZN', 'MSFT', 'NVDA', 'ARM', 'CRM']
 for symbol in stock_symbols:
-    real_time_data = fetch_stock_data(symbol, '1d', '1m')
+    real_time_data = fetch_stock_data(symbol, '1d', '15m')
     if not real_time_data.empty:
         real_time_data = process_data(real_time_data)
         last_price_series = real_time_data['Close'].iloc[-1]
         last_price = series_to_float(last_price_series)
         first_price_series = real_time_data['Close'].iloc[0]
         first_price = series_to_float(first_price_series)
-        change = last_close - first_price
+        change = last_price - first_price
         pct_change_series = (change/real_time_data['Open'].iloc[0]) * 100
         pct_change = series_to_float(pct_change_series)        
         st.sidebar.metric(f"{symbol}", f"{last_price:.2f} USD", f"{change:.2f} ({pct_change:.2f}%)")
