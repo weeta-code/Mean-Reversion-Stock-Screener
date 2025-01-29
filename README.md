@@ -4,7 +4,7 @@ A stock screener based on Mean Reversion trading strategy utilizing bollinger ba
 
 
 ## To use
-* Download zip file and unzip to any folder
-* ensure all libraries are downloaded, listed within project files(requirements.txt)
-* run command: streamlit run /Path/To/Your/main.py
+* Copy the Repo
+* Download all dependencies
+* run command: streamlit run /Path/To/Your/screener.py
 
