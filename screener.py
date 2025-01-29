@@ -3,20 +3,16 @@ import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
 import yfinance as yf
-from datetime import datetime, timedelta
 import numpy as np
+from plotly.subplots import make_subplots
+import time
 
 
 # Data Pulling, Processing, Technical Indication Creation
 
 
 def fetch_stock_data(ticker, period, interval):
-    ed = datetime.now
-    if period == '1wk':
-        sd = ed - timedelta(days=7)
-    else:
-        data = yf.download(ticker, period=period, interval=interval)
-    
+    data = yf.download(ticker, period=period, interval=interval)
     return data
 
 def process_data(data):
@@ -60,8 +56,8 @@ def calculate_metrics(data):
 
 def calculate_rsi(data, periods=14):
     delta = data.diff()
-    gain = (delta.where(delta > 0, 0)).rolling(window=periods).mean()
-    loss = (-delta.where(delta < 0, 0)).rolling(window=periods).mean()
+    gain = (delta.where(delta > 0, 0)).rolling(window=periods, min_periods=1).mean()
+    loss = (-delta.where(delta < 0, 0)).rolling(window=periods, min_periods=1).mean()
     rs = gain / loss
     return 100 - (100 / (1 + rs))
 
@@ -70,8 +66,8 @@ def calculate_bollinger_bands(
         window: int = 20, 
         num_std: float = 2.0
     ):
-        rolling_mean = prices.rolling(window=window).mean()
-        rolling_std = prices.rolling(window=window).std()
+        rolling_mean = prices.rolling(window=window, min_periods=0).mean()
+        rolling_std = prices.rolling(window=window, min_periods=0).std()
         
         upper_band = rolling_mean + (num_std * rolling_std)
         lower_band = rolling_mean - (num_std * rolling_std)
@@ -102,7 +98,7 @@ indicators = st.sidebar.multiselect('Technical Indicators', ['RSI', 'Bollinger B
 
 # Interval Mapping for time periods(tp)
 interval_mapping = {
-    '1d' : '15m',
+    '1d' : '5m',
     '1wk' : '30m',
     '1mo' : '1d',
     '1y' : '1wk',
@@ -110,63 +106,91 @@ interval_mapping = {
 }
 
 # Dashboard Updating
-if st.sidebar.button('Update'):
-    data = fetch_stock_data(ticker, tp, interval_mapping[tp])
-    data = process_data(data)
-    data = add_technical_indicators(data)
 
-    last_close, change, pct_change, high, low, volume = calculate_metrics(data)
+data = fetch_stock_data(ticker, tp, interval_mapping[tp])
+data = process_data(data)
+data = add_technical_indicators(data)
+last_close, change, pct_change, high, low, volume = calculate_metrics(data)
+data.columns = data.columns.droplevel(1)
 
-    st.metric(
+st.metric(
         label=f"{ticker} Last Price",
         value=f"{last_close:,.2f} USD",
         delta=f"{change:,.2f} ({pct_change:,.2f}%)"
     )
 
-    col1, col2, col3 = st.columns(3)
-    col1.metric("High", f"{high:,.2f} USD")
-    col2.metric("Low", f"{low:,.2f} USD")
-    col3.metric("Volume", f"{volume:,}")
+col1, col2, col3 = st.columns(3)
+col1.metric("High", f"{high:,.2f} USD")
+col2.metric("Low", f"{low:,.2f} USD")
+col3.metric("Volume", f"{volume:,}")
 
     # Plotting the chart
-    fig = go.Figure()
-    data.columns = data.columns.droplevel(1)
-    if chart_type == 'Candlestick':
-        fig.add_trace(go.Candlestick(x=data['Datetime'],
-                                     open=data['Open'],
-                                     high = data['High'],
-                                     low=data['Low'],
-                                     close=data['Close']))        
-    else:
-        fig = px.line(data, x='Datetime', y='Close')
+fig = make_subplots(
+    rows=2, cols=1,
+    shared_xaxes=True,
+    row_heights=[0.7, 0.3],      
+    vertical_spacing=0.2        
+)
+if chart_type == 'Candlestick':
+        fig.add_trace(go.Candlestick(
+            x=data['Datetime'],
+            open=data['Open'],
+            high=data['High'],
+            low=data['Low'],
+            close=data['Close'],
+            name='Price'
+        ), 
+        row=1, col=1
+)   
+else:
+        fig.add_trace(
+        go.Scatter(
+        x=data['Datetime'],
+        y=data['Close'],
+        name='Close Price'
+        ), 
+        row=1, col=1
+)
 
-    for indicator in indicators:
+      
+    
+for indicator in indicators:
         if indicator == 'RSI':
-            fig.add_trace(go.Scatter(x=data['Datetime'], y=data['RSI'], name='Relative Strength Index'))
+            fig.add_trace(
+                go.Scatter(
+                x=data['Datetime'],
+                y=data['RSI'],
+                name='RSI',
+                line=dict(color='purple')
+            ),
+            row=2, col=1
+    )
         elif indicator == 'Bollinger Bands':
-            fig.add_trace(go.Scatter(x=data['Datetime'], y=data['UpperBand'], name='Upper Band'))
-            fig.add_trace(go.Scatter(x=data['Datetime'], y=data['MiddleBand'], name='Middle Band'))
-            fig.add_trace(go.Scatter(x=data['Datetime'], y=data['LowerBand'], name='Lower Band'))
+            print(data['Datetime'])
+            fig.add_trace(go.Scatter(x=data['Datetime'], y=data['UpperBand'], name='Upper Band'), row=1, col=1)
+            fig.add_trace(go.Scatter(x=data['Datetime'], y=data['MiddleBand'], name='Middle Band'), row=1, col=1)
+            fig.add_trace(go.Scatter(x=data['Datetime'], y=data['LowerBand'], name='Lower Band'), row=1, col=1)
 
-    fig.update_layout(title=f'{ticker} {tp.upper()} Chart',
-                      xaxis_title='Time',
+fig.update_layout(xaxis_rangeslider_visible=False, 
+                      title=f'{ticker.upper()} {tp.upper()} Chart',
                       yaxis_title='Price (USD)',
-                      height=600)
-    st.plotly_chart(fig, use_container_width=True)
+                      yaxis2_title='RSI',
+                      height=700)
+st.plotly_chart(fig, use_container_width=True)
 
     # Historical data display & technical indicators
-    st.subheader('Historical Data')
-    st.dataframe(data[['Datetime', 'Open', 'High', 'Low', 'Close', 'Volume']])
+st.subheader('Historical Data')
+st.dataframe(data[['Datetime', 'Open', 'High', 'Low', 'Close', 'Volume']])
 
-    st.subheader('Technical indicators')
-    st.dataframe(data[['Datetime', 'RSI', 'UpperBand', 'MiddleBand', 'LowerBand']])
+st.subheader('Technical indicators')
+st.dataframe(data[['Datetime', 'RSI', 'UpperBand', 'MiddleBand', 'LowerBand']])
 
 
 # Sidebar section for real-time pricing of selected symbols
 st.sidebar.header('Real-Time Price Action')
 stock_symbols = ['AAPL', 'GOOGL', 'AMZN', 'MSFT', 'NVDA', 'ARM', 'CRM']
 for symbol in stock_symbols:
-    real_time_data = fetch_stock_data(symbol, '1d', '15m')
+    real_time_data = fetch_stock_data(symbol, '1d', '5m')
     if not real_time_data.empty:
         real_time_data = process_data(real_time_data)
         last_price_series = real_time_data['Close'].iloc[-1]
