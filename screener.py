@@ -52,8 +52,6 @@ def calculate_metrics(data):
     return last_close, change, pct_change, high_val, low_val, volume_val
 
 
-
-
 def calculate_rsi(data, periods=14):
     delta = data.diff()
     gain = (delta.where(delta > 0, 0)).rolling(window=periods, min_periods=1).mean()
